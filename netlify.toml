@@ -1,0 +1,12 @@
+# Manual deploys from the local release build: `igni build web` then
+# `netlify deploy --prod`. No build runs on Netlify.
+[build]
+  publish = "dist/web"
+
+# Flutter's loader fetches main.dart.js and canvaskit/*.wasm; the service
+# worker versions them itself, so no cache headers are needed. This one
+# keeps a stale index.html from pinning an old bundle after a deploy.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"

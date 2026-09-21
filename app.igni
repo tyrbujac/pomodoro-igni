@@ -1,0 +1,161 @@
+# Pomodoro. Igni v0.22.1, default theme, no persistence: a reload resets it.
+# 25-minute focus sessions, 5-minute breaks. Nothing starts on its own.
+#
+# Timekeeping is by timestamp, not by counting ticks. Start and Resume set
+# `end_time`; the `every 1s` block re-reads `now()` and compares, so a tab
+# that the browser throttled in the background shows the right time on its
+# next tick instead of drifting.
+
+screen Pomodoro:
+  focus_length = 1500
+  break_length = 300
+  phase = "focus"            # "focus" or "break"
+  status = "idle"            # "idle", "running", "paused" or "done"
+  end_time = 0               # timestamp the running phase ends at
+  paused_remaining = 0       # seconds left when Pause was pressed
+  tick = now()
+  remaining = remaining_seconds()
+
+  every 1s:
+    if status is "running":
+      tick = now()
+      if tick >= end_time:
+        status = "done"
+
+  layout vertical, align: center, padding: large:
+    layout vertical, max_width: phone, gap: large, align: center:
+      label "Pomodoro", style: heading
+      # Mode switch. Real buttons so they are keyboard reachable and named;
+      # the active mode is the brand-coloured one. Picking the other mode
+      # stops whatever is running and shows that mode's full length, ready
+      # to Start; picking the current mode changes nothing.
+      layout horizontal, gap: small, align: center:
+        if phase is "focus":
+          button "Focus", color: brand, on tap: select_phase("focus")
+          button "Break", color: subtle, on tap: select_phase("break")
+        else:
+          button "Focus", color: subtle, on tap: select_phase("focus")
+          button "Break", color: brand, on tap: select_phase("break")
+      # The countdown is the largest text on the page. `heading` is the
+      # biggest text style Igni has, so the card around it does the rest.
+      layout vertical, padding: large, background: card, rounded: large, align: center, gap: small:
+        label clock_text(), style: heading
+        label status_text(), style: caption, color: subtle
+      layout vertical, gap: medium, align: center, transition: fade:
+        if status is "idle":
+          button "Start", color: brand, on tap: start()
+        else if status is "running":
+          layout horizontal, gap: small, align: center:
+            button "Pause", color: brand, on tap: pause()
+            button "Reset", color: subtle, on tap: reset()
+        else if status is "paused":
+          layout horizontal, gap: small, align: center:
+            button "Resume", color: brand, on tap: resume()
+            button "Reset", color: subtle, on tap: reset()
+        else:
+          # The message sits in its own centred column: a branch with several
+          # children gets its own Column that ignores the parent's
+          # `align: center`, so a bare label here lands at the left edge.
+          # ROADMAP bug 32.
+          layout vertical, align: center:
+            label finished_text(), align: center
+          layout horizontal, gap: small, align: center:
+            button next_button_text(), color: brand, on tap: next_phase()
+            button "Reset", color: subtle, on tap: reset()
+
+  phase_length():
+    if phase is "focus":
+      return focus_length
+    return break_length
+
+  remaining_seconds():
+    if status is "running":
+      if tick >= end_time:
+        return 0
+      return end_time - tick
+    if status is "paused":
+      return paused_remaining
+    if status is "done":
+      return 0
+    return phase_length()
+
+  # mm:ss. Igni has no padding builtin, so the zero is a conditional.
+  # Both halves are built as strings before they are joined: `text + seconds`
+  # with a string variable on the left and a number on the right is a runtime
+  # type error, because only a string literal triggers the number-to-text
+  # conversion. ROADMAP bug 31.
+  clock_text():
+    minutes = floor(remaining / 60)
+    seconds = remaining - minutes * 60
+    minutes_text = "" + minutes
+    seconds_text = "" + seconds
+    if minutes < 10:
+      minutes_text = "0" + minutes
+    if seconds < 10:
+      seconds_text = "0" + seconds
+    return minutes_text + ":" + seconds_text
+
+  status_text():
+    if status is "running":
+      return phase_name() + " in progress"
+    if status is "paused":
+      return "Paused"
+    if status is "done":
+      return phase_name() + " finished"
+    if phase is "focus":
+      return "Ready to focus"
+    return "Ready for a break"
+
+  phase_name():
+    if phase is "focus":
+      return "Focus"
+    return "Break"
+
+  finished_text():
+    if phase is "focus":
+      return "Focus session finished. Time for a break."
+    return "Break finished. Ready for the next focus session?"
+
+  next_button_text():
+    if phase is "focus":
+      return "Start break"
+    return "Start focus"
+
+  # The phase length is picked inline rather than via phase_length():
+  # `end_time = tick + phase_length()` is a Dart type error (an int plus a
+  # function result is `num`, and end_time is an int). ROADMAP bug 30.
+  start():
+    tick = now()
+    if phase is "focus":
+      end_time = tick + focus_length
+    else:
+      end_time = tick + break_length
+    status = "running"
+
+  pause():
+    tick = now()
+    paused_remaining = end_time - tick
+    if paused_remaining < 0:
+      paused_remaining = 0
+    status = "paused"
+
+  resume():
+    tick = now()
+    end_time = tick + paused_remaining
+    status = "running"
+
+  reset():
+    status = "idle"
+
+  select_phase(next):
+    if next is phase:
+      return
+    phase = next
+    status = "idle"
+
+  next_phase():
+    if phase is "focus":
+      phase = "break"
+    else:
+      phase = "focus"
+    status = "idle"

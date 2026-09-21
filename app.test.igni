@@ -1,0 +1,255 @@
+test "opens idle on focus at 25:00":
+  render Pomodoro
+  expect seen "Pomodoro"
+  expect seen "25:00"
+  expect seen "Ready to focus"
+  expect seen "Start"
+  expect not seen "Pause"
+
+test "start counts down from a timestamp":
+  freeze_time: "2026-09-21T12:00:00Z"
+    render Pomodoro
+    tap "Start"
+    expect seen "Focus in progress"
+    expect seen "Pause"
+    expect seen "Reset"
+    mock every:
+      advance 5s
+    expect seen "24:55"
+
+test "pause holds the time and resume continues from it":
+  freeze_time: "2026-09-21T12:00:00Z"
+    render Pomodoro
+    tap "Start"
+    mock every:
+      advance 30s
+    tap "Pause"
+    expect seen "24:30"
+    expect seen "Paused"
+    expect seen "Resume"
+    mock every:
+      advance 30s
+    expect seen "24:30"
+    tap "Resume"
+    expect seen "Focus in progress"
+    mock every:
+      advance 5s
+    expect seen "24:25"
+
+test "reset returns to idle at the full length":
+  freeze_time: "2026-09-21T12:00:00Z"
+    render Pomodoro
+    tap "Start"
+    mock every:
+      advance 5s
+    expect seen "24:55"
+    tap "Reset"
+    expect seen "25:00"
+    expect seen "Ready to focus"
+    expect seen "Start"
+    expect not seen "Pause"
+
+test "reset from paused returns to idle":
+  freeze_time: "2026-09-21T12:00:00Z"
+    render Pomodoro
+    tap "Start"
+    mock every:
+      advance 5s
+    tap "Pause"
+    tap "Reset"
+    expect seen "25:00"
+    expect seen "Start"
+
+test "focus session finishes after 25 minutes and waits":
+  freeze_time: "2026-09-21T12:00:00Z"
+    render Pomodoro
+    tap "Start"
+    mock every:
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+    expect seen "01:00"
+    mock every:
+      advance 60s
+    expect seen "00:00"
+    expect seen "Focus finished"
+    expect seen "Focus session finished. Time for a break."
+    expect seen "Start break"
+    mock every:
+      advance 30s
+    expect seen "00:00"
+    expect seen "Start break"
+    expect not seen "Pause"
+
+test "the break starts only when asked and finishes after 5 minutes":
+  freeze_time: "2026-09-21T12:00:00Z"
+    render Pomodoro
+    tap "Start"
+    mock every:
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+    tap "Start break"
+    expect seen "05:00"
+    expect seen "Ready for a break"
+    expect seen "Start"
+    expect not seen "Break in progress"
+    tap "Start"
+    expect seen "Break in progress"
+    mock every:
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+    expect seen "00:00"
+    expect seen "Break finished. Ready for the next focus session?"
+    expect seen "Start focus"
+    tap "Start focus"
+    expect seen "25:00"
+    expect seen "Ready to focus"
+
+test "switching mode while idle shows the other length, ready to start":
+  render Pomodoro
+  tap "Break"
+  expect seen "05:00"
+  expect seen "Ready for a break"
+  expect seen "Start"
+  tap "Focus"
+  expect seen "25:00"
+  expect seen "Ready to focus"
+
+test "switching mode while running stops the timer":
+  freeze_time: "2026-09-21T12:00:00Z"
+    render Pomodoro
+    tap "Start"
+    mock every:
+      advance 5s
+    expect seen "24:55"
+    tap "Break"
+    expect seen "05:00"
+    expect seen "Ready for a break"
+    expect seen "Start"
+    expect not seen "Pause"
+    mock every:
+      advance 5s
+    expect seen "05:00"
+
+test "switching mode while paused discards the held time":
+  freeze_time: "2026-09-21T12:00:00Z"
+    render Pomodoro
+    tap "Start"
+    mock every:
+      advance 5s
+    tap "Pause"
+    expect seen "24:55"
+    tap "Break"
+    expect seen "05:00"
+    expect seen "Start"
+    expect not seen "Resume"
+
+test "switching mode after completion leaves the finished state":
+  freeze_time: "2026-09-21T12:00:00Z"
+    render Pomodoro
+    tap "Start"
+    mock every:
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+      advance 60s
+    expect seen "Focus session finished. Time for a break."
+    tap "Break"
+    expect seen "05:00"
+    expect seen "Ready for a break"
+    expect seen "Start"
+    expect not seen "Start break"
+
+test "selecting the current mode leaves a running timer alone":
+  freeze_time: "2026-09-21T12:00:00Z"
+    render Pomodoro
+    tap "Start"
+    mock every:
+      advance 5s
+    tap "Focus"
+    expect seen "24:55"
+    expect seen "Focus in progress"
+    expect seen "Pause"
+    mock every:
+      advance 5s
+    expect seen "24:50"
+
+test "selecting the current mode leaves a paused timer alone":
+  freeze_time: "2026-09-21T12:00:00Z"
+    render Pomodoro
+    tap "Start"
+    mock every:
+      advance 5s
+    tap "Pause"
+    tap "Focus"
+    expect seen "24:55"
+    expect seen "Paused"
+    expect seen "Resume"
