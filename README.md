@@ -10,7 +10,7 @@ Source: `app.igni`. Tests: `app.test.igni` (thirteen, run against a frozen clock
 
 | | |
 |---|---|
-| Igni | commit `681c590f3f7af0c4dc4ae60cf4e6a77adfa1f195` (spec v0.22.1, 2026-09-21) |
+| Igni | commit `dd4f1bd` (spec v0.22.2, 2026-09-21) |
 | Flutter | 3.44.2, stable channel, framework `c9a6c48423`, engine `77e2e94772` |
 | Dart | 3.12.2 |
 | Node | 22.x (for the Igni CLI) |
@@ -22,7 +22,7 @@ The Igni revision matters: two CLI fixes made that day are what keep the release
 ```bash
 # 1. Igni CLI at the pinned revision
 git clone https://github.com/tyrbujac/Igni.git
-cd Igni && git checkout 681c590f3f7af0c4dc4ae60cf4e6a77adfa1f195
+cd Igni && git checkout dd4f1bd
 cd transpiler && npm install
 # put `igni` on your PATH, e.g. a wrapper that runs: npx tsx <Igni>/transpiler/src/igni.ts "$@"
 

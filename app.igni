@@ -15,6 +15,13 @@ screen Pomodoro:
   paused_remaining = 0       # seconds left when Pause was pressed
   tick = now()
   remaining = remaining_seconds()
+  # The active mode's button is brand-coloured, the other grey.
+  focus_color = subtle
+  break_color = subtle
+  if phase is "focus":
+    focus_color = brand
+  else:
+    break_color = brand
 
   every 1s:
     if status is "running":
@@ -25,43 +32,31 @@ screen Pomodoro:
   layout vertical, align: center, padding: large:
     layout vertical, max_width: phone, gap: large, align: center:
       label "Pomodoro", style: heading
-      # Mode switch. Real buttons so they are keyboard reachable and named;
-      # the active mode is the brand-coloured one. Picking the other mode
-      # stops whatever is running and shows that mode's full length, ready
-      # to Start; picking the current mode changes nothing.
+      # Mode switch. Real buttons so they are keyboard reachable and named.
+      # Picking the other mode stops whatever is running and shows that
+      # mode's full length, ready to Start; picking the current mode changes
+      # nothing.
       layout horizontal, gap: small, align: center:
-        if phase is "focus":
-          button "Focus", color: brand, on tap: select_phase("focus")
-          button "Break", color: subtle, on tap: select_phase("break")
-        else:
-          button "Focus", color: subtle, on tap: select_phase("focus")
-          button "Break", color: brand, on tap: select_phase("break")
+        button "Focus", color: focus_color, on tap: select_phase("focus")
+        button "Break", color: break_color, on tap: select_phase("break")
       # The countdown is the largest text on the page. `heading` is the
       # biggest text style Igni has, so the card around it does the rest.
       layout vertical, padding: large, background: card, rounded: large, align: center, gap: small:
         label clock_text(), style: heading
         label status_text(), style: caption, color: subtle
-      layout vertical, gap: medium, align: center, transition: fade:
+        if status is "done":
+          label finished_text(), align: center
+      layout horizontal, gap: small, align: center:
         if status is "idle":
           button "Start", color: brand, on tap: start()
         else if status is "running":
-          layout horizontal, gap: small, align: center:
-            button "Pause", color: brand, on tap: pause()
-            button "Reset", color: subtle, on tap: reset()
+          button "Pause", color: brand, on tap: pause()
         else if status is "paused":
-          layout horizontal, gap: small, align: center:
-            button "Resume", color: brand, on tap: resume()
-            button "Reset", color: subtle, on tap: reset()
+          button "Resume", color: brand, on tap: resume()
         else:
-          # The message sits in its own centred column: a branch with several
-          # children gets its own Column that ignores the parent's
-          # `align: center`, so a bare label here lands at the left edge.
-          # ROADMAP bug 32.
-          layout vertical, align: center:
-            label finished_text(), align: center
-          layout horizontal, gap: small, align: center:
-            button next_button_text(), color: brand, on tap: next_phase()
-            button "Reset", color: subtle, on tap: reset()
+          button next_button_text(), color: brand, on tap: next_phase()
+        if status is not "idle":
+          button "Reset", color: subtle, on tap: reset()
 
   phase_length():
     if phase is "focus":
@@ -80,20 +75,15 @@ screen Pomodoro:
     return phase_length()
 
   # mm:ss. Igni has no padding builtin, so the zero is a conditional.
-  # Both halves are built as strings before they are joined: `text + seconds`
-  # with a string variable on the left and a number on the right is a runtime
-  # type error, because only a string literal triggers the number-to-text
-  # conversion. ROADMAP bug 31.
   clock_text():
     minutes = floor(remaining / 60)
     seconds = remaining - minutes * 60
-    minutes_text = "" + minutes
-    seconds_text = "" + seconds
+    text = "" + minutes + ":"
     if minutes < 10:
-      minutes_text = "0" + minutes
+      text = "0" + text
     if seconds < 10:
-      seconds_text = "0" + seconds
-    return minutes_text + ":" + seconds_text
+      text = text + "0"
+    return text + seconds
 
   status_text():
     if status is "running":
@@ -121,15 +111,9 @@ screen Pomodoro:
       return "Start break"
     return "Start focus"
 
-  # The phase length is picked inline rather than via phase_length():
-  # `end_time = tick + phase_length()` is a Dart type error (an int plus a
-  # function result is `num`, and end_time is an int). ROADMAP bug 30.
   start():
     tick = now()
-    if phase is "focus":
-      end_time = tick + focus_length
-    else:
-      end_time = tick + break_length
+    end_time = tick + phase_length()
     status = "running"
 
   pause():
